@@ -1,7 +1,7 @@
 ---
 title: "Mini Project 01: Most Popular Programming on Netflix"
 author: "Laert Xhumari"
-date: today
+date: 10/03/2025
 format: 
   html:
     code-fold: true
@@ -11,7 +11,7 @@ execute:
   message: false    # hide package messages globally 
 knitr:
   opts_chunk:
-    results: "hold" # hold output until end of chunk (no per-line splits)
+    results: "hold" # hold output until end of chunk 
 ---
 
 ## Using Data to Our Advantage
@@ -137,7 +137,7 @@ n_countries
 ```
 <br>
 
-"All Quiet on the Western Front" is the film that has been in the top 10 most often then any other non-english film. It is a brutal story showing events set during World War from a young German soldier's perspective. The film has clearly captured the attention of many people, repeating a total of 23 weeks as to 10. 
+"All Quiet on the Western Front" is the film that has been in the top 10 most often then any other non-english film. It is a brutal story showing events set during World War from a young German soldier's perspective. The film has clearly captured the attention of many people, repeating a total of 23 weeks as top 10. 
 ```{r}
 top_non_english <- GLOBAL_TOP_10 |> 
   filter(Category == "Films (Non-English)") |> 
@@ -178,7 +178,7 @@ GLOBAL_TOP_10 |>
 ```
 <br>
 
-"Money Heist" takes the lead for a country's tv show that persisted in the top 10. This how was able to stay for 127 weeks in the top 10 category for the country of Pakistan. never seen it, heard its very good. I am sure Pakistan would agree. 
+"Money Heist" takes the lead for a country's tv show that persisted in the top 10. This how was able to stay for 127 weeks in the top 10 category for the country of Pakistan. Personally ever seen it but heard its very good. I am sure Pakistan would agree. 
 ```{r}
 COUNTRY_TOP_10 |>
   filter(grepl("TV", Category)) |>
@@ -235,7 +235,7 @@ red_notice_views_2021
 ```
 <br>
 
-Many films do not start of as number one. It takes time for people to give it a real chance. We can see that a total of 45 movies have started as a different rank in their debut week. However, eventually after some time they have made it to number one. The most recent tile to achieve this is "Unknown Number: The High School Catfish"
+Many films do not start of as number one. It takes time for people to give it a real chance. We can see that a total of 45 movies have started as a different rank in their debut week. However, eventually after some time they have made it to number one. The most recent title to achieve this is "Unknown Number: The High School Catfish".
 ```{r}
 library(dplyr)
 library(stringr)
@@ -290,7 +290,7 @@ COUNTRY_TOP_10 |>
 
 ### Stranger Things: A Stellar Success 
 
-Stranger Things has had incredible success in its run. It has accumulated about 2,967,980,000 hours watched, thats right nearly 3 billion, spanning a 19 week run in the top 10 leaderboard. As stated earlier, with numbers like this we can draw other conclusions. Given that the show is generally catered towards a younger audience, its safe to say that Netflix as accumulated a huge customer base in this demographic. 
+Stranger Things has had incredible success in its run. It has accumulated about 2,967,980,000 hours watched, thats right nearly 3 billion, spanning a 19 week run in the top 10 leaderboards. As stated earlier, with numbers like this we can draw other conclusions. Given that the show is generally catered towards a younger audience, its safe to say that Netflix as accumulated a huge customer base in this demographic. 
 
 ```{r}
 st_global <- GLOBAL_TOP_10 |>
@@ -304,7 +304,7 @@ st_global
 ```
 <br>
 
-The show has made an appearance on the top 10 leaderboards in 93 countries. This is an incredible number when considering that we found out earlier, the total number of countries that Netflix has data on is 94. That is nearly every single country in the database. The one country that it did not make it was Russia. This is not really a great indication since we do not have up to date data for russia. 
+The show has made an appearance on the top 10 leaderboards in 93 countries. This is an incredible number when considering that we found out earlier, the total number of countries that Netflix has data on is 94. That is nearly every single country in the database. The one country that it did not make it was Russia. This is not really a great indication since we do not have up to date data for Russia. 
 ```{r}
 st_countries <- COUNTRY_TOP_10 |>
   filter(str_detect(`Show Title`, "Stranger Things")) |>
@@ -339,6 +339,7 @@ GLOBAL_TOP_10 |>
     total_weeks = max(`Cumulative Weeks In Top 10`, na.rm = TRUE)
   ) |>
   arrange(desc(total_hours)) |>
+  format_titles() |>
   head(n = 5) |>
   datatable(options = list(searching = FALSE, info = FALSE, paging = FALSE))
 ```
@@ -362,6 +363,7 @@ COUNTRY_TOP_10 |>
     .groups = "drop"
   ) |>
   arrange(desc(total_weeks)) |>
+  format_titles() |>
   head(n = 5) |>
   datatable(options = list(searching = FALSE, info = FALSE, paging = FALSE))
 
@@ -372,7 +374,7 @@ COUNTRY_TOP_10 |>
 
 ### You: A absolute Roller Coster
 
-The show debuted on 2018 with an interesting plot. We are seeing a story from the point of view of an absolute psychopath. It was interesting, it was new. After watching the first two seasons it was a question mark as to how far the show would go. If we see the data from teh table collected below, we can see that the show has had its ups and downs regarding interest, however, judging just by the year 2025 data, its still holding up very well. maybe its worth a re-visit...  
+The show debuted on 2018 with an interesting plot. We are seeing a story from the point of view of an absolute psychopath. It was interesting, it was new. After watching the first two seasons it was a question mark as to how far the show would go. If we see the data from the table collected below, we can see that the show has had its ups and downs regarding interest, however, judging just by the year 2025 data, its still holding up very well. maybe its worth a revisit...  
 
 ```{r}
 library(dplyr)
@@ -380,7 +382,6 @@ library(lubridate)
 library(stringr)
 library(DT)
 
-# Yearly hours watched (plus weeks counted)
 st_yearly <- GLOBAL_TOP_10 |>
   filter(Category == "TV (English)") |>
   filter(str_detect(`Show Title`, "You")) |>
@@ -393,16 +394,19 @@ st_yearly <- GLOBAL_TOP_10 |>
   ) |>
   arrange(Year)
 
-# Optional: add YoY absolute and percent change for context
 st_yearly_yoy <- st_yearly |>
   mutate(
-    yoy_change = hours_watched - dplyr::lag(hours_watched),
+    year_change = hours_watched - dplyr::lag(hours_watched),
   )
 
-# Nicely formatted table
 st_yearly_yoy |>
+  format_titles() |>
   datatable(options = list(searching = FALSE, paging = FALSE, info = FALSE)) |>
-  formatRound(c("hours_watched", "yoy_change"), digits = 0)
+  formatRound(c("Hours Watched", "Year Change"), digits = 0)
 
 
 ```
+
+## Conclusion 
+
+Thank you for reading. Data sometimes can be messy, but if we structure it in a proper way and use tools like `R`, we can analyze and answer some very interesting questions. Businesses heavily rely on data to make proper decisions, where customer satisfaction can be improved, and the financial sector of a company remains healthy. For any other questions or feedback, please feel free to reach out. 
