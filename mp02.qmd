@@ -1,0 +1,20 @@
+---
+title: "Mini Project 02: Making Backyards Affordable for All"
+author: "Laert Xhumari"
+date: 10/03/2025
+format: 
+  html:
+    code-fold: true
+    code-tools: true
+execute:
+  warning: false
+  message: false
+  echo: true
+  results: hide
+---
+
+## Importing Data
+
+```{r}
+
+```
