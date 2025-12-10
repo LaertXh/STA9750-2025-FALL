@@ -1,0 +1,176 @@
+
+
+## Data Preparation 
+
+```{r}
+library(httr2)
+library(readr)
+library(dplyr)
+library(stringr)
+
+base_url  <- "https://data.cityofnewyork.us/resource/erm2-nwe9.csv"
+batch_dir <- "data/311_batch"          # folder for per-batch files
+batch_pattern <- "^nyc_311_2024_batch_(\\d+)\\.csv$"
+
+cols <- c(
+  "unique_key",
+  "created_date",
+  "agency",
+  "complaint_type",
+  "descriptor",
+  "location_type",
+  "incident_zip",
+  "incident_address",
+  "street_name",
+  "cross_street_1",
+  "cross_street_2",
+  "intersection_street_1",
+  "intersection_street_2",
+  "address_type",
+  "city",
+  "landmark",
+  "borough",
+  "x_coordinate_state_plane",
+  "y_coordinate_state_plane",
+  "latitude",
+  "longitude",
+  "location"
+)
+
+where_2024 <- "created_date between '2024-01-01T00:00:00' and '2024-12-31T23:59:59'"
+batch_size <- 50000
+
+# Force consistent column types (all character to avoid bind_rows issues)
+col_spec <- cols(.default = col_character())
+
+#-------------------------------------------------------------------
+# Helper: figure out where to resume (batch index + offset)
+#-------------------------------------------------------------------
+get_resume_state <- function() {
+  if (!dir.exists(batch_dir)) {
+    dir.create(batch_dir, recursive = TRUE)
+    return(list(next_batch_id = 1L, offset = 0L))
+  }
+  
+  existing_files <- list.files(batch_dir, pattern = batch_pattern, full.names = FALSE)
+  
+  if (length(existing_files) == 0) {
+    return(list(next_batch_id = 1L, offset = 0L))
+  }
+  
+  # Extract batch numbers from filenames
+  batch_nums <- str_match(existing_files, batch_pattern)[, 2]
+  batch_nums <- as.integer(batch_nums[!is.na(batch_nums)])
+  
+  max_batch <- max(batch_nums)
+  
+  # Each batch uses limit = batch_size and no overlap,
+  # so starting offset for the *next* batch is:
+  offset <- (max_batch) * batch_size
+  
+  list(next_batch_id = max_batch + 1L, offset = offset)
+}
+
+#-------------------------------------------------------------------
+# Download in batches with httr2, writing each batch to disk
+#-------------------------------------------------------------------
+download_311_2024_batches <- function() {
+  resume <- get_resume_state()
+  batch_id <- resume$next_batch_id
+  offset   <- resume$offset
+  
+  message(sprintf("Starting (or resuming) at batch %d, offset %d", batch_id, offset))
+  
+  repeat {
+    message(sprintf("Requesting batch %d (offset = %d)...", batch_id, offset))
+    
+    req <- request(base_url) |>
+      req_url_query(
+        "$select" = paste(cols, collapse = ","),
+        "$where"  = where_2024,
+        "$limit"  = batch_size,
+        "$offset" = offset
+      )
+    
+    resp <- req |> req_perform()
+    
+    raw_csv <- resp |> resp_body_raw()
+    chunk   <- read_csv(raw_csv, col_types = col_spec, show_col_types = FALSE)
+    
+    if (nrow(chunk) == 0) {
+      message("No more rows returned; finished downloading.")
+      break
+    }
+    
+    # Write this batch immediately to disk
+    out_path <- file.path(batch_dir, sprintf("nyc_311_2024_batch_%04d.csv", batch_id))
+    write_csv(chunk, out_path)
+    message(sprintf("  Retrieved %d rows and wrote '%s'.", nrow(chunk), out_path))
+    
+    if (nrow(chunk) < batch_size) {
+      message("Last (partial) batch received; stopping.")
+      break
+    }
+    
+    offset   <- offset + batch_size
+    batch_id <- batch_id + 1L
+    
+    Sys.sleep(0.25)  # be polite to the API
+  }
+}
+
+```
+
+```{r}
+# write and read final file 
+final_file <- "data/nyc_311_2024_full.csv" 
+
+load_all_311_2024_batches <- function(write_final = FALSE) {
+  if (!dir.exists(batch_dir)) {
+    stop("Batch directory does not exist: ", batch_dir)
+  }
+  
+  files <- list.files(batch_dir, pattern = batch_pattern, full.names = TRUE)
+  
+  if (length(files) == 0) {
+    stop("No batch files found in: ", batch_dir)
+  }
+  
+  message(sprintf("Loading %d batch files...", length(files)))
+  
+  dfs <- lapply(files, function(f) {
+    read_csv(f, col_types = col_spec, show_col_types = FALSE)
+  })
+  
+  df <- bind_rows(dfs)
+  
+  if (write_final) {
+    dir.create(dirname(final_file), recursive = TRUE, showWarnings = FALSE)
+    write_csv(df, final_file)
+    message(sprintf("Wrote combined data to '%s'.", final_file))
+  }
+  
+  df
+}
+
+#-------------------------------------------------------------------
+# use final combined file if present; otherwise build it
+#-------------------------------------------------------------------
+if (file.exists(final_file)) {
+  message(sprintf("Final file '%s' exists. Loading for analysis...", final_file))
+  data_311_2024 <- read_csv(final_file, col_types = col_spec, show_col_types = FALSE)
+} else {
+  message(sprintf("Final file '%s' not found. Ensuring batches are downloaded...", final_file))
+  
+  # This will resume from whatever batches we have
+  download_311_2024_batches()
+  
+  # Load all batches, write final file, and return combined df
+  data_311_2024 <- load_all_311_2024_batches(write_final = TRUE)
+}
+
+# Now ready for analysis
+str(data_311_2024)
+
+
+```
