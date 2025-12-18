@@ -19,6 +19,8 @@ website:
         text: MP02
       - href: mp04.qmd
         text: MP04
+      - href: individual_report.qmd
+        text: Individual Report
     
 format:
   html:
